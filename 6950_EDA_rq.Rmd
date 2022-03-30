@@ -1,7 +1,6 @@
 ---
 title: "6950_EDA"
-author: "Ruoyuan Qian"
-date: "3/29/2022"
+author: "Ruoyuan Qian, Andrew Shan"
 output: pdf_document
 ---
 
@@ -18,9 +17,20 @@ library(earth)
 library(sandwich)
 library(stargazer)
 library(GGally)
+library(patchwork)
+#library(rockchalk)
 ```
 
-```{r}
+# Overview and the goal
+
+In this project, we aim to explore the contributing factors of market values for the players in the five most successful football leagues in Europe (i.e., "Big Five") in the setting of FIFA 21. FIFA 21, as part of the FIFA series, is an association football simulation video game, which is developed and released annually by Electronic Arts under the EA Sports label. It is the 28th installment in the FIFA series, and was released on 9 October 2020 for Microsoft Windows, Nintendo Switch, PlayStation 4 and Xbox One. Enhanced versions for the PlayStation 5 and Xbox Series X and Series S were released on 3 December 2020, in addition to a version for Stadia in March 2021. With an official license from FIFA, the world governing body of football, the game provides comprehensive data featuring more than 30 official leagues, over 700 clubs, and over 17,000 players. 
+
+The 'Big Five' represent the five most successful football leagues in Europe, which are made up of the Premier League in England, La Liga in Spain, the Bundesliga in Germany, Serie A in Italy and Ligue 1 in France. Since 1955 The first edition of the European Cup took place during the 1955–56 season, which provides an unique competition opportunity for footballs clubs in Europe. In 1960, The association coefficient was introduced to rank the football associations of Europe, and thus determine the number of clubs from an association that will participate in the UEFA Champions League, the UEFA Europa League and the UEFA Europa Conference League. Since then, the Premier League, La Liga, the Bundesliga, and Serie A have won the majority of the titles, which was more than titles won by other associations combined. Though Ligue 1 in France has never won the title, it has been ranked among the top 5 eer sicne. The combined revenue of these five leagues, which each represent the highest tier football division in their countries, has more than doubled in the past decade, reaching a total of approximately 15.1 billion euros in 2019/20. As such, the 'Big Five' is consistently attracting talent players to joint the leagues. 
+
+In this study, we aim to examine the contributing factors of market values for the players, which could potentially provide some insights of the key strategy in ability training for players to increase their market value. In addition, the analyses could examine the disparities in the market value across player's position and the optimal league they should join to maximize their market value.  
+
+
+```{r echo=FALSE, warning= FALSE,message = FALSE, include=FALSE}
 fifa = 
   read.csv(file = "players_21.csv") %>% 
   select(-player_url,-long_name,-nationality,-work_rate,-real_face,-release_clause_eur,
@@ -30,8 +40,15 @@ fifa =
   filter(
     league_name %in% c("Spain Primera Division","Italian Serie A","German 1. Bundesliga","French Ligue 1","English Premier League"),
     !(team_position == "GK")) 
+
+
+fifa$team_position <- rockchalk::combineLevels(fifa$team_position,levs = c("CB","LB","LCB","LWB","RB","RCB","RWB","SUB"),
+                                      newLabel = c("Defender") )
+fifa$team_position <- rockchalk::combineLevels(fifa$team_position,levs = c("CAM","CDM","CM","LAM","LCM","LDM","RAM","RCM","RDM","RM","LM"),
+                                      newLabel = c("Midfielder") )
+fifa$team_position <- rockchalk::combineLevels(fifa$team_position,levs = c("CF","LF","LS","LW","RES","RF","RS","RW","ST"),
+                                      newLabel = c("Forward") )
   
-#skimr::skim(house)
 
 sum_na = function(x){
   sum = sum(is.na(x))
@@ -48,85 +65,157 @@ missing_var = map(fifa,sum_na) %>%
   filter(value > 500 ) %>% 
   pull(variable) 
 
-#house %>% 
-#select(-Alley,-FireplaceQu,-PoolQC,-Fence,-MiscFeature) %>% 
-#map(.,sum_na)
-# names of variables when its value nears zero
 near_0_var = 
   fifa %>% 
   nearZeroVar( names = TRUE)
-  
 
-```
 
-```{r,fig.height=4}
-density_sale = 
-ggplot(fifa, aes(x = overall, ..density..)) +
-  geom_histogram() +
-  geom_line(stat = 'density',size = 0.7,color = "blue")+
-  ggtitle("Figure 1 Density of overall score") +
-  #ylab("Houses") +
-  xlab("overall score") + 
-  theme(plot.title = element_text(hjust = 0.5))
+#missing_var = map(fifa_model,sum_na) %>% 
+#  as.data.frame() %>% 
+#  pivot_longer(
+#    everything(),
+#    names_to = "variable",
+#    values_to = "value"
+#  ) %>% 
+#  filter(value > 0 ) %>% 
+#  pull(variable) 
 
-density_sale
 
-density_sale = 
-ggplot(fifa, aes(x = potential, ..density..)) +
-  geom_histogram() +
-  geom_line(stat = 'density',size = 0.7,color = "blue")+
-  ggtitle("Figure 1 Density of overall score") +
-  #ylab("Houses") +
-  xlab("overall score") + 
-  theme(plot.title = element_text(hjust = 0.5))
-
-density_sale
-
-density_sale = 
-ggplot(fifa, aes(x = log(value_eur), ..density..)) +
-  geom_histogram() +
-  geom_line(stat = 'density',size = 0.7,color = "blue")+
-  ggtitle("Figure 1 Density of log(value_eur)") +
-  #ylab("Houses") +
-  xlab("log(value_eur)") + 
-  theme(plot.title = element_text(hjust = 0.5))
-
-density_sale
-```
-
-```{r message=F, warning=F}
 fifa_model = 
 fifa %>% 
   filter(!(value_eur == 0)) %>% 
   mutate(BMI = (height_cm/100)^2/weight_kg,
-         log_value_eur = log(value_eur)) %>% 
+         log_value_eur = log(value_eur),
+         team_position = as.factor(team_position)) %>% 
   drop_na() %>% 
   select(sofifa_id:preferred_foot,team_position:physic,BMI,log_value_eur,
-         -potential,-wage_eur,-height_cm,-weight_kg,-value_eur)
+         -potential,-wage_eur,-height_cm,-weight_kg)
 
-missing_var = map(fifa_model,sum_na) %>% 
-  as.data.frame() %>% 
-  pivot_longer(
-    everything(),
-    names_to = "variable",
-    values_to = "value"
-  ) %>% 
-  filter(value > 0 ) %>% 
-  pull(variable) 
+```
+
+# Exploratory Data Analysis (EDA)
+
+## Data cleaning
+
+The data set “players_21.csv” contains 106 variables and 18,944 observations. Since our goal is to analyze contribution factors of players value in “Big Five”, we only keep the players in "Spain Primera Division", "Italian Serie A", "German 1. Bundesliga", "French Ligue 1" and "English Premier League". What’s more, goal keepers are removed due to the different attributes between them and other players. Finally, 1 player with NA ratings and 2 players with zero overall scores are removed.
+
+As for variables, 53 unrelated variables are dropped such as “player name”, “nationality”, “player tags”. In addition, 40 variables were removed because they are the more specific classifications of some attributes, which are highly correlated to one another. Thus, we only keep one overall rate for per attribute. 
+
+After that, 2,756 observations and 16 variables (4 categorical variables and 12 continuous variables) are left demonstrating the demographic information (sofifa_id, name, age, league_name, weight, height), individual attribute ratings (overall, pace, shooting, passing, dribbling, defending, physic), team position and the value in Euro.
+
+## Data manipulation
+
+There are 28 levels in “team position” variable, to make it more interpretable in the model, we group them into 3 categories: Defender, Midfielder, Forward. 
+
+From empirical knowledge, height and weight are always related to each other, in order to avoid collinearity, we create BMI to combine their information into one variable.
+
+According to the density plot (Figure 1) of the response (value in Euro), the original data is heavily right skewed, while the distribution after log-transformation is more likely to Normal. Thus, log transformed value in Euro is our reponse.
+
+The correlation plot (Figure 2) is made to give us a general idea how continous predictors are related to each other. Shooting, passing, and dribbling are related and they might reflact the simlar aspects of player.
+
+From the plot matrix (Figure 3), the ditribtions of all continuous variables are roughly Normal. The overall scores and log-value in Euro are highly correlated (0.972), suggesting that overall scores is a very important predictors. Besides, the correlation between passing and dribblingis over 0.8, indicating that there might be some potential collinearity.
+
+From the box plots of catergorical variables(Figure 4), the distributions for preferred foot and league name are quite symmetric with similar variance, while the variance for forward level in team position is a slightly larger than others.
+
+```{r,echo=FALSE, warning= FALSE,message = FALSE}
+a <- dput(names(fifa_model))
+options(width = 120)
+b <- c("ID",
+       "Short Name",
+       "Age",
+       "League Name",
+       "Overall",
+       "Market Value in Euro",
+       "Preferred Foot",
+       "Team Position",
+       "Pace Score",
+       "Shooting Score",
+       "Passing Score",
+       "Dribbling Score",
+       "Defending Score",
+       "Physic Score",
+       "BMI",
+       "Log(Market Value in Euro)"
+       )
+c <- map(fifa_model, function(x) class(x))
+e <- map(fifa_model, function(x) ifelse(is.factor(x) == T, 
+                                        "--", min(x, na.rm=T)))
+f <- map(fifa_model, function(x) ifelse(is.factor(x) == T, 
+                                        "--", max(x, na.rm=T)))
+fifa_cb <- data_frame(Variable = a, Description = b, Class = c
+                      , Min = e, Max = f)
+pander::pander(fifa_cb)
+```
 
 
-numeric_var_index = 
- fifa_model%>% 
-  map(.,is.numeric) %>% 
-  unlist() %>% 
-  as.vector()
+
+```{r,echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Density plots of response",fig.height=5,fig.width=10, fig.align = "center"}
+
+density_orign = 
+ggplot(fifa_model, aes(x = value_eur, ..density..)) +
+  geom_histogram() +
+  geom_line(stat = 'density',size = 0.7,color = "blue")+
+#  ggtitle("Figure 1 Density of value_eur") +
+  #ylab("Houses") +
+  xlab("value in Euro") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+density_sale = 
+ggplot(fifa_model, aes(x = log_value_eur, ..density..)) +
+  geom_histogram() +
+  geom_line(stat = 'density',size = 0.7,color = "blue")+
+#  ggtitle("Figure 1 Density of log(value_eur)") +
+  #ylab("Houses") +
+  xlab("log(value in Euro)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+density_orign + density_sale
+```
+
+
+```{r include = F, echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Correlation plots of numeric predictors",fig.height=7,fig.width=7, fig.align = "center"}
+
+corrplot(
+  cor(
+    fifa_model %>% 
+      select(-sofifa_id,-log_value_eur,-value_eur,-team_position,-preferred_foot,-short_name,-league_name)),title = "Correlation Plot", method = "square", addgrid.col = "darkgray", order="hclust", mar = c(4,0,4,0), addrect = 6, rect.col = "black", rect.lwd = 5,cl.pos = "b", tl.col = "indianred4", tl.cex = 1.5, cl.cex = 1.5)
+
+```
+
+```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="plot matrix of numeric variables",fig.height=10,fig.width=10, fig.align = "center"}
 
 ## dribling and passing has high corr
-ggpairs(data = fifa_model[,which(numeric_var_index == TRUE)] %>% select(-sofifa_id))
+ggpairs(data = fifa_model %>% 
+      select(-sofifa_id,-value_eur,-team_position,-preferred_foot,-short_name,-league_name,log_value_eur))
 
-reg_data = as.data.frame(map(fifa_model,as.numeric))
 
-corrplot(cor(reg_data %>% select(-sofifa_id,-log_value_eur)),title = "Correlation Plot", method = "square", addgrid.col = "darkgray", order="hclust", mar = c(4,0,4,0), addrect = 6, rect.col = "black", rect.lwd = 5,cl.pos = "b", tl.col = "indianred4", tl.cex = 1.5, cl.cex = 1.5)
+```
+
+
+```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Box plots of catergorical variables",fig.height=8,fig.width=8}
+
+box_foot = 
+fifa_model %>% 
+  ggplot(aes(x = preferred_foot, y = log_value_eur)) +
+  geom_boxplot()+
+  stat_boxplot(geom = "errorbar", width = 0.5) +
+  ylab("log(value in Euro)") 
+
+box_posi = 
+fifa_model %>% 
+  ggplot(aes(x = team_position, y = log_value_eur)) +
+  geom_boxplot() +
+  stat_boxplot(geom = "errorbar", width = 0.5)+
+  ylab("log(value in Euro)") 
+
+box_leag = 
+fifa_model %>% 
+  ggplot(aes(x = league_name, y = log_value_eur)) +
+  geom_boxplot()+
+  stat_boxplot(geom = "errorbar", width = 0.5)+
+  ylab("log(value in Euro)")
+
+(box_foot/box_posi)+box_leag 
 
 ```
 
