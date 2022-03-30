@@ -1,0 +1,132 @@
+---
+title: "6950_EDA"
+author: "Ruoyuan Qian"
+date: "3/29/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(Rmisc)
+library(corrplot)
+library(FNN)
+library(pdp)
+library(earth)
+library(sandwich)
+library(stargazer)
+library(GGally)
+```
+
+```{r}
+fifa = 
+  read.csv(file = "players_21.csv") %>% 
+  select(-player_url,-long_name,-nationality,-work_rate,-real_face,-release_clause_eur,
+         -player_tags,-team_jersey_number,-loaned_from,-joined,-contract_valid_until,-nation_position,
+         -nation_jersey_number,-defending_marking,-(ls:rb),-dob,-(gk_diving:player_traits),-club_name,
+         -body_type,-league_rank,-player_positions) %>% 
+  filter(
+    league_name %in% c("Spain Primera Division","Italian Serie A","German 1. Bundesliga","French Ligue 1","English Premier League"),
+    !(team_position == "GK")) 
+  
+#skimr::skim(house)
+
+sum_na = function(x){
+  sum = sum(is.na(x))
+  sum}
+
+# names of predictor when its missing value larger than 500
+missing_var = map(fifa,sum_na) %>% 
+  as.data.frame() %>% 
+  pivot_longer(
+    everything(),
+    names_to = "variable",
+    values_to = "value"
+  ) %>% 
+  filter(value > 500 ) %>% 
+  pull(variable) 
+
+#house %>% 
+#select(-Alley,-FireplaceQu,-PoolQC,-Fence,-MiscFeature) %>% 
+#map(.,sum_na)
+# names of variables when its value nears zero
+near_0_var = 
+  fifa %>% 
+  nearZeroVar( names = TRUE)
+  
+
+```
+
+```{r,fig.height=4}
+density_sale = 
+ggplot(fifa, aes(x = overall, ..density..)) +
+  geom_histogram() +
+  geom_line(stat = 'density',size = 0.7,color = "blue")+
+  ggtitle("Figure 1 Density of overall score") +
+  #ylab("Houses") +
+  xlab("overall score") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+density_sale
+
+density_sale = 
+ggplot(fifa, aes(x = potential, ..density..)) +
+  geom_histogram() +
+  geom_line(stat = 'density',size = 0.7,color = "blue")+
+  ggtitle("Figure 1 Density of overall score") +
+  #ylab("Houses") +
+  xlab("overall score") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+density_sale
+
+density_sale = 
+ggplot(fifa, aes(x = log(value_eur), ..density..)) +
+  geom_histogram() +
+  geom_line(stat = 'density',size = 0.7,color = "blue")+
+  ggtitle("Figure 1 Density of log(value_eur)") +
+  #ylab("Houses") +
+  xlab("log(value_eur)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+density_sale
+```
+
+```{r message=F, warning=F}
+fifa_model = 
+fifa %>% 
+  filter(!(value_eur == 0)) %>% 
+  mutate(BMI = (height_cm/100)^2/weight_kg,
+         log_value_eur = log(value_eur)) %>% 
+  drop_na() %>% 
+  select(sofifa_id:preferred_foot,team_position:physic,BMI,log_value_eur,
+         -potential,-wage_eur,-height_cm,-weight_kg,-value_eur)
+
+missing_var = map(fifa_model,sum_na) %>% 
+  as.data.frame() %>% 
+  pivot_longer(
+    everything(),
+    names_to = "variable",
+    values_to = "value"
+  ) %>% 
+  filter(value > 0 ) %>% 
+  pull(variable) 
+
+
+numeric_var_index = 
+ fifa_model%>% 
+  map(.,is.numeric) %>% 
+  unlist() %>% 
+  as.vector()
+
+## dribling and passing has high corr
+ggpairs(data = fifa_model[,which(numeric_var_index == TRUE)] %>% select(-sofifa_id))
+
+reg_data = as.data.frame(map(fifa_model,as.numeric))
+
+corrplot(cor(reg_data %>% select(-sofifa_id,-log_value_eur)),title = "Correlation Plot", method = "square", addgrid.col = "darkgray", order="hclust", mar = c(4,0,4,0), addrect = 6, rect.col = "black", rect.lwd = 5,cl.pos = "b", tl.col = "indianred4", tl.cex = 1.5, cl.cex = 1.5)
+
+```
+
