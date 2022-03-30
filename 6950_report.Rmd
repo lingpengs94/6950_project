@@ -1,0 +1,31 @@
+---
+title: "6950_project_EDAreport"
+author: "Ruoyuan Qian"
+date: "3/29/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exploratory Data Analysis (EDA)
+
+## Data cleaning
+
+The data set “players_21.csv” contains 106 variables and 18,944 observations. Since our goal is to analyze contribution factors of players value in “Big Five”, we only keep the players in "Spain Primera Division", "Italian Serie A", "German 1. Bundesliga", "French Ligue 1" and "English Premier League". What’s more, goal keepers are removed due to the different attributes between them and other players. 
+
+As for variables, 53 unrelated variables are dropped such as “player name”, “nationality”, “player tags”. In addition, 40 variables were removed because they are the more specific classifications of some attributes, which are highly correlated to one another. Thus, we only keep one overall rate for per attribute. 
+
+After that, 2,756 observations and 16 columns are left demonstrating the demographic information, individual attribute ratings, team position and the value in Europe.
+
+## Data manipulation
+
+The distribution of response (value in Europe) is heavily right skewed, thus log transformation is conducted and the distribuion of transformed response is quit normal.
+
+
+We are interested in wether the team position of player will associate with player value, but there are 28 levels in “team position” variable, to make it more interpretable in the model, we group them into 3 categories: Defender, Midfielder, Forward. 
+
+According to the density plot of the response
+
+

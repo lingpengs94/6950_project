@@ -1,5 +1,5 @@
 ---
-title: "6950_EDA"
+title: "Player's Market Value in 'Big Five'"
 author: "Ruoyuan Qian, Andrew Shan"
 output: pdf_document
 ---
@@ -180,7 +180,7 @@ corrplot(
 
 ```
 
-```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="plot matrix of numeric variables",fig.height=10,fig.width=10, fig.align = "center"}
+```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="plot matrix for numeric variables",fig.height=10,fig.width=10, fig.align = "center"}
 
 ## dribling and passing has high corr
 ggpairs(data = fifa_model %>% 
@@ -189,7 +189,7 @@ ggpairs(data = fifa_model %>%
 
 ```
 
-```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Box plots of catergorical variables",fig.height=8,fig.width=8}
+```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Box plots for catergorical variables",fig.height=8,fig.width=8}
 
 box_foot = 
 fifa_model %>% 
