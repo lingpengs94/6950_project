@@ -1,0 +1,117 @@
+---
+title: "modeling"
+author: "Ruoyuan Qian"
+date: "4/20/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(Rmisc)
+library(corrplot)
+library(FNN)
+library(pdp)
+library(earth)
+library(sandwich)
+library(stargazer)
+library(GGally)
+library(patchwork)
+library(MASS)
+```
+
+```{r}
+fifa_model = read_csv2("fifa_model.csv")
+
+fifa_model
+
+fit.all = 
+lm(log_value_eur ~ age + league_name + overall + preferred_foot + team_position + pace + shooting + passing + dribbling + dribbling, data = fifa_model)
+
+summary(null)
+
+null = lm(log_value_eur ~ 1, data = fifa_model)
+full = lm(log_value_eur ~ age + league_name + overall + preferred_foot + team_position + pace + shooting + passing + dribbling + dribbling + defending + physic + BMI, data = fifa_model)
+
+stepAIC(object = null, scope = list(upper = full),
+        direction = "forward", k = 2)
+
+stepAIC(object = null, scope = list(upper = full),
+        direction = "forward", k = log(39))
+
+stepAIC(object = full, scope = list(upper = full),
+        direction = "backward", k = log(39))
+
+stepAIC(object = null, scope = list(upper = full),
+        direction = "both", k = log(39))
+```
+
+Final model
+```{r}
+#FinaL MODEL FOR stepwise
+
+fit.AIC.fw = lm(formula = log_value_eur ~ overall + age + shooting + team_position + 
+    league_name + physic + defending + dribbling, data = fifa_model)
+
+fit.BIC.fw = lm(formula = log_value_eur ~ overall + age + shooting + team_position + 
+    league_name + physic + defending + dribbling, data = fifa_model)
+
+fit.BIC.bw = lm(formula = log_value_eur ~ age + league_name + overall + team_position + 
+    shooting + dribbling + defending + physic, data = fifa_model)
+
+fit.BIC.sw = lm(formula = log_value_eur ~ overall + age + shooting + team_position + 
+    league_name + physic + defending + dribbling, data = fifa_model)
+
+# 8param
+```
+
+Model diagnosis
+```{r echo = FALSE, message = F, warning = F, fig.height = 7}
+#augment(fit.BIC.sw, fifa_model) %>% 
+#  ggplot(aes(x = age, y = overall)) + geom_point(aes(color = .hat)) +
+#  scale_color_continuous("Leverage")
+
+#augment(fit.BIC.sw) %>% rownames_to_column("case") %>% ggplot(aes(x = as.numeric(case), y = .hat)) + 
+#  geom_point() + xlab("case id") + ylab("leverage") + 
+#  geom_hline(data = tibble(threshold = c("2p/n", "3p/n"), ref = c(2*3/dim(fifa_model)[1], #3*3/dim(fifa_model)[1])),
+#             aes(yintercept = ref, color = threshold))
+
+base = augment(fit.BIC.sw, fifa_model) %>% mutate(.ti = rstudent(fit.BIC.sw)) %>% 
+  rownames_to_column("case") %>% ggplot(aes(x = as.numeric(case))) +
+  xlab("case id") + geom_point() + geom_segment(yend = 0, aes(xend = as.numeric(case)))
+
+
+(base + aes(y = .hat) + ylab("leverage") + geom_hline(data = tibble(threshold = c("2p/n", "3p/n"), ref = c(2*3/dim(fifa_model)[1], 3*3/dim(fifa_model)[1])), aes(yintercept = ref, color = threshold))) /
+ (base + aes(y = .cooksd, color = team_position) + ylab("Cook's distance")) / 
+ (base + aes(y = .ti, color = team_position) + ylab("Studentized residuals") + geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_hline(yintercept = qt(1 - (0.05/(2*dim(fifa_model)[1])), df = 2747 - 1), linetype = "dotted") +
+  geom_hline(yintercept = qt((0.05/(2*dim(fifa_model)[1])), df = 2747 - 1), linetype = "dotted")) + ylim(-5,5)
+
+(base + aes(y = .hat) + ylab("leverage") + geom_hline(data = tibble(threshold = c("2p/n", "3p/n"), ref = c(2*3/dim(fifa_model)[1], 3*3/dim(fifa_model)[1])), aes(yintercept = ref, color = threshold))) /
+ (base + aes(y = .cooksd, color = league_name) + ylab("Cook's distance")) / 
+ (base + aes(y = .ti, color = league_name) + ylab("Studentized residuals") + geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_hline(yintercept = qt(1 - (0.05/(2*dim(fifa_model)[1])), df = 2747 - 1), linetype = "dotted") +
+  geom_hline(yintercept = qt((0.05/(2*dim(fifa_model)[1])), df = 2747 - 1), linetype = "dotted")) + ylim(-5,5)
+```
+
+```{r}
+base = augment(mod, UN11) %>% mutate(.ti = rstudent(mod)) %>% 
+  rownames_to_column("case") %>% ggplot(aes(x = as.numeric(case))) +
+  xlab("case id") + geom_point() + geom_segment(yend = 0, aes(xend = as.numeric(case)))
+
+
+(base + aes(y = .hat) + ylab("leverage") + geom_hline(data = tibble(threshold = c("2p/n", "3p/n"), ref = c(2*3/dim(UN11)[1], 3*3/dim(UN11)[1])), aes(yintercept = ref, color = threshold))) /
+ (base + aes(y = .cooksd, color = group) + ylab("Cook's distance")) / 
+ (base + aes(y = .ti, color = group) + ylab("Studentized residuals") + geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_hline(yintercept = qt(1 - (0.05/(2*dim(UN11)[1])), df = 196 - 1), linetype = "dotted") +
+  geom_hline(yintercept = qt((0.05/(2*dim(UN11)[1])), df = 196 - 1), linetype = "dotted")) + ylim(-5,5)
+
+(base + aes(y = .hat) + ylab("leverage") + geom_hline(data = tibble(threshold = c("2p/n", "3p/n"), ref = c(2*3/dim(UN11)[1], 3*3/dim(UN11)[1])), aes(yintercept = ref, color = threshold))) /
+ (base + aes(y = .cooksd, color = group) + ylab("Cook's distance")) / 
+ (base + aes(y = .ti, color = group) + ylab("Studentized residuals") + geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_hline(yintercept = qt(1 - (0.05/(2*dim(UN11)[1])), df = 196 - 1), linetype = "dotted") +
+  geom_hline(yintercept = qt((0.05/(2*dim(UN11)[1])), df = 196 - 1), linetype = "dotted")) + ylim(-5,5)
+```
+
