@@ -137,21 +137,60 @@ base = model_diag %>%
 ```
 
 
-```{r echo = FALSE, message = F, warning = F, fig.height = 7}
-par(mfrow=c(1,3))
+```{r echo = FALSE, message = F, warning = F, fig.height= 7}
+
+res <- residuals(fit.BIC.bw)
+fits <- fitted(fit.BIC.bw)
+
+#par(mfrow=c(5,2))
+par(mfrow=c(4,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
 qqnorm(fit.BIC.bw$residuals,
        xlab="Normal quantiles", ylab="Sample quantiles", main="")
 qqline(fit.BIC.bw$residuals)
-hist(fit.BIC.bw$residuals, xlab="Residuals", main="")
+#hist(fit.BIC.bw$residuals, xlab="Residuals", main="")
 plot(y=model_diag %>% pull(.resid) , x=model_diag %>% pull(.fitted),xlab="Residual", ylab="Fitted")
 abline(h=0,col="red")
+
+#par(mfrow=c(3,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
+#plot(fits, res)
+#abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$age)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$league_name)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$overall)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$team_position)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$shooting)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$dribbling)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$defending)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$physic)
+abline(h=0, col="gray")
+
+#qqnorm(res, xlim=c(-5,5))
+#qqline(res)
 ```
 
 All age >30, and majority of them are defender. Therefore, we want to investigate whether there are interaction effects between team postion and age. 
 
 ```{r}
-fit.BIC.quart<-lm(formula = log_value_eur ~ poly(age,2) + league_name + overall + team_position + 
+fit.BIC.quart<-lm(formula = log_value_eur ~ poly(age,2) + league_name +  poly(overall,2) + team_position + 
     shooting + dribbling + defending + physic, data = fifa_model)
+
 summary(fit.BIC.quart)
 ```
 
@@ -164,15 +203,57 @@ summary(fit.BIC.quart)
 #summary(lm(data=fifa_mode))
 ```
 
-```{r}
-model_diag_quart = augment(fit.BIC.quart, fifa_model)
-par(mfrow=c(1,3))
+```{r, fig.height= 9, fig.width=8}
+res <- residuals(fit.BIC.quart)
+fits <- fitted(fit.BIC.quart)
+
+#par(mfrow=c(5,2))
+par(mfrow=c(4,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
 qqnorm(fit.BIC.quart$residuals,
        xlab="Normal quantiles", ylab="Sample quantiles", main="")
 qqline(fit.BIC.quart$residuals)
-hist(fit.BIC.quart$residuals, xlab="Residuals", main="")
-plot(y=model_diag_quart %>% pull(.resid) , x=model_diag_quart %>% pull(.fitted),ylim = c(-1.5,1.5),xlab="Residual", ylab="Fitted")
+#hist(fit.BIC.bw$residuals, xlab="Residuals", main="")
+plot(y=model_diag %>% pull(.resid) , x=model_diag %>% pull(.fitted),xlab="Residual", ylab="Fitted")
 abline(h=0,col="red")
+
+#par(mfrow=c(3,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
+#plot(fits, res)
+#abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$age)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$league_name)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$overall)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$team_position)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$shooting)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$dribbling)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$defending)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$physic)
+abline(h=0, col="gray")
+
+```
+
+# Partial F test
+
+Compare Backward model and Ploy model
+
+```{r}
+anova(fit.BIC.bw,fit.BIC.quart)
 ```
 
 
