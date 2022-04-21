@@ -194,13 +194,13 @@ fit.BIC.quart<-lm(formula = log_value_eur ~ poly(age,2) + league_name +  poly(ov
 summary(fit.BIC.quart)
 ```
 
+Since the estimate of quadratic term of overall is negative, we drop it.
 
 ```{r}
-#fit.BIC.interact<- lm(formula = log_value_eur ~ poly(age,2) + league_name + overall * team_position + 
-#    shooting + dribbling + defending + physic, data = fifa_model)
-#summary(fit.BIC.interact)
-#
-#summary(lm(data=fifa_mode))
+fit.BIC.quart<-lm(formula = log_value_eur ~ poly(age,2) + league_name +  overall + team_position + 
+    shooting + dribbling + defending + physic, data = fifa_model)
+
+summary(fit.BIC.quart)
 ```
 
 ```{r, fig.height= 9, fig.width=8}
@@ -248,13 +248,6 @@ abline(h=0, col="gray")
 
 ```
 
-# Partial F test
-
-Compare Backward model and Ploy model
-
-```{r}
-anova(fit.BIC.bw,fit.BIC.quart)
-```
 
 
 ```{r Appendix XX}
