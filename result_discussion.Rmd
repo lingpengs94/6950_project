@@ -1,0 +1,87 @@
+---
+title: "result_discussion"
+author: "Ruoyuan Qian"
+date: "4/20/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(tidyverse)
+fifa_model = read_csv2("fifa_model.csv")
+```
+
+
+# Result
+
+## Final model
+
+Let $Y_i$ be the log-transformed player value in Euro, $e_i$ be a R.V. and $e_i \sim^{i.id.} N(0,\sigma^2),i=1,...,2756$. 
+
+$$log(Y_i) = 0.1587 - 15.66*Age - 4.598*Age^2 - 0.061 *I(L=FR) -0.0146 *I(L=DE) - 0.0372 * I(L=IT) - 0.033 * I(L=SP) + $$
+$$0.205 * Overall - 0.0254 *I(P=FW) + 0.0259 * I(P=MF) + 0.0023 *Shooting + 0.0004 *Dribbling - 0.0009*Defending + $$
+$0.0002*physic + e_i$
+
+Where L denotes the categorical variable League Name, the reference is Premier League in English, FR, GE, IT, SP denote the Ligue 1 in France, 1. Bundesliga in Germany, Serie A in Italy and Primera Division in Spain, repectively.
+
+P denotes the categotical variable Team position, the reference is Defender, FW, MF denote the Forward and Midfielder, repectively.
+
+According to the final model, all the predictors are significant except dribbling and pysic scores. 
+Adjusting to league of the players, overall scores, team position, shooting, dribbling, defending, physic abilities, age is negatively associated with the player value, which is reasonable in reality that the youger the plaer, the more potential he is. In addition, all the estimates of dummy variables about the league is negative, meaning that the players in Premier League in English are more valuable than the players in other leagues. The sencond valuable league is Bundesliga in Germany, and the third one is Primera Division in Spain, the most unvaluable league in Big-Five is Ligue 1 in France. Additionally, the overall score is positive related to the player value, which follows the same pattern as the scatter plot in EDA. And the midfielder is more valuable than defender and player in forward position. It might be because there are fewer top players who are good at playing at midfield than players at other two positions. Shooting, dribbling and physic scores are positive associated to the player value but the defending ability is negatively related to the response.
+
+To sum up, our guidance for the player to increase their values is they can start playing as early as possible, join in Premier League in English, train as a midfielder and enhance their shooting, dribbling and physic abilities.
+
+## Discussion
+
+According to the residual QQ plot, the normality is much better than the model without age quadratic term. However, as for the residual v.s. overall plot, there might be still a trend in overall score, and the shape of residual v.s. overall is very similar to residual v.s. fitted value plot, indicating the trend in overall score might affect the model residual a lot. We have tried several ways to fix the problem, adding polynomial terms of overall scores and adding interaction terms for overall scores and other predictors, but none of the methods is able to solve the trend problem. The trend might be explained by other potential predictors that we do not collect. Thus, based on the principle of easy interpretation, we decide to use the model without polynomial and interaction terms of overall scores.
+
+```{r, fig.height= 9, fig.width=8}
+fit.BIC.quart<-lm(formula = log_value_eur ~ poly(age,2) + league_name +  overall + team_position + 
+    shooting + dribbling + defending + physic, data = fifa_model)
+
+res <- residuals(fit.BIC.quart)
+fits <- fitted(fit.BIC.quart)
+
+#par(mfrow=c(5,2))
+par(mfrow=c(4,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
+qqnorm(fit.BIC.quart$residuals,
+       xlab="Normal quantiles", ylab="Sample quantiles", main="")
+qqline(fit.BIC.quart$residuals)
+#hist(fit.BIC.bw$residuals, xlab="Residuals", main="")
+#plot(y=model_diag %>% pull(.resid) , x=model_diag %>% #pull(.fitted),xlab="Residual", ylab="Fitted")
+#abline(h=0,col="red")
+
+#par(mfrow=c(3,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
+plot(fits, res)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$age)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$league_name)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$overall)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$team_position)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$shooting)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$dribbling)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$defending)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$physic)
+abline(h=0, col="gray")
+
+```
+
+ 
+
