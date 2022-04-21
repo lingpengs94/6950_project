@@ -1,7 +1,6 @@
 ---
 title: "Project Report"
-author: "Andrew Shan"
-date: "`r Sys.Date()`"
+author: "Andrew Shan, Ruoyuan Qian"
 output: pdf_document
 ---
 
@@ -46,7 +45,7 @@ According to the density plot `(Appendix Figure 1)` of the response (value in Eu
 ```{r echo=FALSE, warning= FALSE,message = FALSE, fig.cap="plot matrix for numeric variables",fig.height=10,fig.width=10, fig.align = "center"}
 ## dribling and passing has high corr
 ggpairs(data = fifa_model %>% 
-      select(-sofifa_id,-value_eur,-team_position,-preferred_foot,-short_name,-league_name,log_value_eur))
+      select(-X1,-sofifa_id,-value_eur,-team_position,-preferred_foot,-short_name,-league_name,log_value_eur))
 ```
 
 # Methods and model building 
@@ -112,7 +111,7 @@ Model_sum %>%
 
 We used three methods, forward, backward, and stepwise, with BIC as the criterion for model selection. The forward and stepwise methods yields one same final model, which contains `overall`, `age`, `shooting`, and `team position`. The backward method yields the model inlcuding `overall`, `age`, `team position`, `shooting`, `defending`, and `physic`. The summary statistics for two model were similar (`Table 1`) and two model has smaller AIC and BIC values.  Around $98\%$ of variability for market values was explained by the independent variables included in both model. Since we were unable to determine the best model based on the summary statistics. We additionally used the 10-fold cross-validation method to compare two models. The root-mean-square error (RMSE) was used in evaluating the cross-validation results. The RMSE measures of the differences between values predicted by a model or an estimator and the values observed. The model from backward selection was chosen due to its smaller RMSE (`Figure 2`). 
 
-```{r,echo=FALSE,fig.cap="Distribtuion of RMSE"}
+```{r,echo=FALSE,fig.cap="Distribtuion of RMSE", fig.height = 3}
 set.seed(6950)
 tran.control = trainControl(method = "cv",number = 10)
 
@@ -138,6 +137,8 @@ bwplot(resamp, metric = "RMSE")
 n.param = dim(fifa_model)[1]- fit.BIC.bw$df.residual
 ```
 
+\newpage
+
 Therefore, the model we selected is
 \begin{align*}
 E[Y|X] &= \beta_0 +  \beta_1Age+\beta_2*I(L=FR) + \beta_3*I(L=DE) +\beta_4*I(L=IT)+\beta_5*I(L=SP)\\ 
@@ -145,10 +146,10 @@ E[Y|X] &= \beta_0 +  \beta_1Age+\beta_2*I(L=FR) + \beta_3*I(L=DE) +\beta_4*I(L=I
        & +\beta_{10}*Dribbling +\beta_{11}*Defending+\beta_{12}*phsic
 \end{align*}
 
-```{r echo = FALSE, message = F, warning = F, fig.height = 6,fig.cap="Model Diagnosis"}
+```{r echo = FALSE, message = F, warning = F, fig.height = 10,fig.cap="Model Diagnosis"}
 
 model_diag =augment(fit.BIC.bw, fifa_model) %>% 
-  mutate(.ti = rstudent(fit.BIC.bw))
+  mutate(.ti = round(rstudent(fit.BIC.bw),4))
 base = model_diag %>% 
  rownames_to_column("case") %>% 
   ggplot(aes(x = as.numeric(case))) +
@@ -171,9 +172,9 @@ base = model_diag %>%
   plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 ```
 
-Model diagnosis was processed by detecting whether there exists some high-leverage and highly influential points. as well as outliers. `Fugire 3` shows out data has relatively low leverage for all observations and Cook's distances measuring effects of influential point were smaller than 0.03, which were much smaller than the threshold of 1. Studentized residuals were used in examining the potential outliers. Several observations are out of range of the $95\%$ confidence interval for the Studentized residuals (`Table 2`). All of them were aged over 33 years old, majority of them were defenders, their market value were either in of lower tail or the upper tail of the distribution. In addition, their overall score is either very high or relative low. Given the large sample size (n=2756) and their values are not unusual, we decided to keep these data points assuming the effects of these observations are negligible. In the model diagnosis plots, we observed a heavy-tail problems in the residual Q-Q plot, and the z shape rather than a flat shape was observed in the residual against fitted value plot and residual against overall score plot. Additionally, the scatterplots in `Figure 1` indicates a potential quadratic relationship between outcome variable and age. We did not observe any problems in other diagnosis plots. Thus, we added additional non-linear terms for `age` and `overall`. 
+Model diagnosis was processed by detecting whether there exists some high-leverage and highly influential points. as well as outliers. `Fugire 3` shows out data has relatively low leverage for all observations and Cook's distances measuring effects of influential point were smaller than 0.03, which were much smaller than the threshold of 1. Studentized residuals were used in examining the potential outliers. Several observations are out of range of the $95\%$ confidence interval for the Studentized residuals (`Table 2`). All of them were aged over 33 years old, majority of them were defenders, their market value were either in of lower tail or the upper tail of the distribution. In addition, their overall score is either very high or relative low. Given the large sample size (n=2756) and their values are not unusual, we decided to keep these data points assuming the effects of these observations are negligible. In the model diagnosis plots (`Figure 4`), we observed a heavy-tail problems in the residual Q-Q plot, and the z shape rather than a flat shape was observed in the residual against fitted value plot and residual against overall score plot. Additionally, the scatterplots in `Figure 1` indicates a potential quadratic relationship between outcome variable and age. We did not observe any problems in other diagnosis plots. Thus, we added additional non-linear terms for `age` and `overall`. 
 
-```{r echo = FALSE, message = F, warning = F, fig.height= 7 ,fig.cap="Model Diagnosis"}
+```{r echo = FALSE, message = F, warning = F, fig.height= 10 ,fig.with = 8,fig.cap="Model Diagnosis"}
 
 res <- residuals(fit.BIC.bw)
 fits <- fitted(fit.BIC.bw)
@@ -221,7 +222,7 @@ abline(h=0, col="gray")
 
 ```{r,echo=FALSE}
 model_diag %>%
-  dplyr::select(short_name,log_value_eur, age, league_name, overall,team_position,shooting,
+  dplyr::select(log_value_eur, age, league_name, overall,team_position,shooting,
          dribbling,defending,physic,.ti) %>%
   filter(abs(.ti) > abs(qt((0.05/(2*dim(fifa_model)[1])), df = dim(fifa_model)[1]-9 - 1))) %>% 
   knitr::kable(caption = "Obeservations with large absoluted studentized residuals")
@@ -229,10 +230,88 @@ model_diag %>%
 
 In the model including quadratic term for both `age` and `overall`, the sign of higher order terms of the variable `overall` are different from the linear term and coefficient estimate differed with 79.37 and -1.73 for the linear and quadratic, respectively. It indicates potential colinearity problems between linear and quadratic term  for `overall`. Thus, we dropped the quadratic term for `overall` from the model. 
 
+\newpage
 
+# Result
+
+## Final model
+
+Let $Y_i$ be the log-transformed player value in Euro, $e_i$ be a R.V. and $e_i \sim^{i.id.} N(0,\sigma^2),i=1,...,2756$. 
+
+$$log(Y_i) = 0.1587 - 15.66*Age - 4.598*Age^2 - 0.061 *I(L=FR) -0.0146 *I(L=DE) - 0.0372 * I(L=IT) - 0.033 * I(L=SP) + $$
+$$0.205 * Overall - 0.0254 *I(P=FW) + 0.0259 * I(P=MF) + 0.0023 *Shooting + 0.0004 *Dribbling - 0.0009*Defending + $$
+$0.0002*physic + e_i$
+
+Where L denotes the categorical variable League Name, the reference is Premier League in English, FR, GE, IT, SP denote the Ligue 1 in France, 1. Bundesliga in Germany, Serie A in Italy and Primera Division in Spain, repectively.
+
+P denotes the categotical variable Team position, the reference is Defender, FW, MF denote the Forward and Midfielder, repectively.
+
+## Interpretation
+
+According to the final model, all the predictors are significant except dribbling and pysic scores. 
+Adjusting to league of the players, overall scores, team position, shooting, dribbling, defending, physic abilities, age is negatively associated with the player value, which is reasonable in reality that the youger the plaer, the more potential he is. In addition, all the estimates of dummy variables about the league is negative, meaning that the players in Premier League in English are more valuable than the players in other leagues. The sencond valuable league is Bundesliga in Germany, and the third one is Primera Division in Spain, the most unvaluable league in Big-Five is Ligue 1 in France. Additionally, the overall score is positive related to the player value, which follows the same pattern as the scatter plot in EDA. And the midfielder is more valuable than defender and player in forward position. It might be because there are fewer top players who are good at playing at midfield than players at other two positions. Shooting, dribbling and physic scores are positive associated to the player value but the defending ability is negatively related to the response.
+
+To sum up, our guidance for the player to increase their values is they can start playing as early as possible, join in Premier League in English, train as a midfielder and enhance their shooting, dribbling and physic abilities.
+
+# Discussion
+
+According to the residual QQ plot (`Figure 5`), the normality is much better than the model without age quadratic term. However, as for the residual v.s. overall plot, there might be still a trend in overall score, and the shape of residual v.s. overall is very similar to residual v.s. fitted value plot, indicating the trend in overall score might affect the model residual a lot. We have tried several ways to fix the problem, adding polynomial terms of overall scores and adding interaction terms for overall scores and other predictors, but none of the methods is able to solve the trend problem. The trend might be explained by other potential predictors that we do not collect. Thus, based on the principle of easy interpretation, we decide to use the model without polynomial and interaction terms of overall scores.
+
+
+```{r,echo = FALSE, message = F, warning = F, fig.height= 10 ,fig.with = 8,fig.cap="Final Model Diagnosis"}
+
+fit.BIC.quart<-lm(formula = log_value_eur ~ poly(age,2) + league_name +  overall + team_position + 
+    shooting + dribbling + defending + physic, data = fifa_model)
+
+res <- residuals(fit.BIC.quart)
+fits <- fitted(fit.BIC.quart)
+
+#par(mfrow=c(5,2))
+par(mfrow=c(4,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
+qqnorm(fit.BIC.quart$residuals,
+       xlab="Normal quantiles", ylab="Sample quantiles", main="")
+qqline(fit.BIC.quart$residuals)
+#hist(fit.BIC.bw$residuals, xlab="Residuals", main="")
+#plot(y=model_diag %>% pull(.resid) , x=model_diag %>% #pull(.fitted),xlab="Residual", ylab="Fitted")
+#abline(h=0,col="red")
+
+#par(mfrow=c(3,3), cex=0.75, mar=c(4,4,1,1), bty="L")
+
+plot(fits, res)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$age)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$league_name)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$overall)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$team_position)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$shooting)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$dribbling)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$defending)
+abline(h=0, col="gray")
+
+boxplot(res ~ fifa_model$physic)
+abline(h=0, col="gray")
+
+```
+
+\newpage
+ 
 # Appendeix
 
-```{r,echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Appendeix 1: Distribution of response",fig.height=5,fig.width=10, fig.align = "center"}
+```{r,echo=FALSE, warning= FALSE,message = FALSE, fig.cap="Appendeix 1: Distribution of response",fig.height=5,fig.width=10}
 density_orign = 
 ggplot(fifa_model, aes(x = value_eur, ..density..)) +
   geom_histogram() +
